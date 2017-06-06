@@ -5,6 +5,12 @@ from sqlalchemy import create_engine, asc
 from sqlalchemy.orm import sessionmaker
 from database_setup import Base, Restaurant, MenuItem
 
+####import for antiforgery state token
+from flask import session as login_session ##importing the session module from flask to create login session
+##import the random and string library to generate pseudo-random string for login session
+import random 
+import string
+
 
 #Connect to Database and create database session
 engine = create_engine('sqlite:///restaurantmenu.db')
@@ -12,6 +18,21 @@ Base.metadata.bind = engine
 
 DBSession = sessionmaker(bind=engine)
 session = DBSession()
+
+
+##Creating a login page which generates an antiforgery state token 
+@app.route('/login')
+def showLogin():
+    
+    ##Creating a 32 pseudo-random string for login session 
+    state = ''.join(random.choice(string.ascii_uppercase + string.digits)
+                    for x in xrange(32))
+                        
+    ##setting the state of the login session
+    login_session['state'] = state
+    
+    ##Returning the login session state as response to get request
+    return "The current session state is %s" % login_session['state']
 
 
 #JSON APIs to view Restaurant Information
@@ -142,4 +163,4 @@ def deleteMenuItem(restaurant_id,menu_id):
 if __name__ == '__main__':
   app.secret_key = 'super_secret_key'
   app.debug = True
-  app.run(host = '0.0.0.0', port = 5000)
+  app.run(host = '0.0.0.0', port = 5050)
