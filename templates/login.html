@@ -17,13 +17,12 @@
 <body>
 
 
-<!-- GOOGLE PLUS SIGN IN BUTTON-->
-
+<!-- GOOGLE PLUS SIGN IN-->
 
           <div id="signInButton">
           <span class="g-signin"
-            data-scope = "openid email"
-            data-clientid="YOUR_CLIENT_ID_GOES_HERE.apps.googleusercontent.com"
+            data-scope="openid email"
+            data-clientid="627586601667-jcqvubn41tojjm0dh6tbrik72h76jc4p.apps.googleusercontent.com"
             data-redirecturi="postmessage"
             data-accesstype="offline"
             data-cookiepolicy="single_host_origin"
@@ -32,58 +31,59 @@
           </span>
         </div>
 
-        <div id="result"></div>
+      <div id="result"></div>
+
+      <script>
+
+      //Callback function whihc reacts to change in authResult
+      function signInCallback(authResult) {
+
+          //if 'code' is available in authResult
+          if (authResult['code']) {
+            // Hide the sign-in button now that the user is authorized
+            $('#signinButton').attr('style', 'display: none');
+
+            // Ajax post request to send the one-time-use code to the server,
+            //if the server responds, write a 'login successful' message to the web page and then redirect back to the main restaurants page
+            $.ajax({
+
+              //Ajax request parameters
+              type: 'POST',
+              url: '/gconnect?state={{STATE}}', //state parameter is a template paramter given when flasks render the page
+              processData: false,
+              data: authResult['code'],
+              contentType: 'application/octet-stream; charset=utf-8',
+
+              //if the post request is successful then the success function is executed
+              success: function(result) {
+                //if the server has additionnal information to pass to the client then this is store in the result variable
+                //the message stored in the result variable is then displayed in the 'result' div
+                if (result) {
+                  $('#result').html('Login Successful!</br>'+ result + '</br>Redirecting...')
+
+                //timeout function redirects to the restaurant page after 4 seconds
+                 setTimeout(function() {
+                  window.location.href = "/restaurant";
+                 }, 4000);
+
+                //if there is an error parameter is sent by google then the error message is put on the console
+                } else if (authResult['error']) {
+                  console.log('There was an error: ' + authResult['error']);
+
+                //in the even no error is returned by sever to the callback function then display a general error message to the 'result' div
+                } else {
+                      $('#result').html('Failed to make a server-side call. Check your configuration and console.');
+                       }
+                    }
+              });
+          }
+        }
+
+      </script>
 
 
-    <script>
 
-        //A call back function which responds to any change in authResult
-       function signInCallback(authResult) {
-
-        //If a code is found in the dictionary authResult
-        if (authResult['code']) {
-
-          // Hide the sign-in button now that the user is authorized
-          $('#signinButton').attr('style', 'display: none');
-
-          // Send the one-time-use code to the server, if the server responds, write a 'login successful' message to the web page and then redirect back to the main restaurants page
-          $.ajax({
-
-            //Ajax request parameters
-            type: 'POST',
-            url: '/gconnect?state={{STATE}}',
-            processData: false,
-            data: authResult['code'],
-            contentType: 'application/octet-stream; charset=utf-8',
-            //Success function of the ajax request
-            success: function(result) {
-              // Handle or verify the server response if necessary.
-              if (result) {
-                //A success message is put on the Login page
-                $('#result').html('Login Successful!</br>'+ result + '</br>Redirecting...')
-                //After a timeout of 4s the user is redirected to /restaurant page
-                setTimeout(function() {
-                window.location.href = "/restaurant";
-                }, 4000);
-            //if an error is in authResult the and the extracted error message is put on the console log
-            } else if (authResult['error']) {
-              console.log('There was an error: ' + authResult['error']);
-            //else print failure message fo a failed server side call
-            } else {
-                  $('#result').html('Failed to make a server-side call. Check your configuration and console.');
-                   }
-            }
-
-        });
-      }
-    }
-
-    </script>
-
-
-
-
-<!--END GOOGLE PLUS SIGN IN BUTTON -->
+<!--END GOOGLE PLUS SIGN IN -->
 
   </body>
 
