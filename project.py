@@ -201,6 +201,19 @@ def gconnect():
     login_session['username'] = data['name']
     login_session['picture'] = data['picture']
     login_session['email'] = data['email']
+    
+    ####Seeeing if the user exists, if it doesnt then make a new one
+    
+    ##Extracting the user id from the database by email retrieved from the login session
+    user_id = getUserID(login_session['email'])
+    
+    ##If there is no user id then make a new user object using data from login session
+    if not user_id:
+        
+        user_id = createUser(login_session)
+        
+    ##setting the user id of the login session
+    login_session['user_id'] = user_id
 
     ##Creating the output response
     output = ''
