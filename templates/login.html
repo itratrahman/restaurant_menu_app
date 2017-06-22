@@ -35,7 +35,7 @@
 
       <script>
 
-      //Callback function whihc reacts to change in authResult
+      //Callback function which reacts to change in authResult
       function signInCallback(authResult) {
 
           //if 'code' is available in authResult
@@ -70,7 +70,7 @@
                 } else if (authResult['error']) {
                   console.log('There was an error: ' + authResult['error']);
 
-                //in the even no error is returned by sever to the callback function then display a general error message to the 'result' div
+                //in the event no error is returned by sever to the callback function then display a general error message to the 'result' div
                 } else {
                       $('#result').html('Failed to make a server-side call. Check your configuration and console.');
                        }

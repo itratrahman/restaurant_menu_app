@@ -84,7 +84,7 @@ def gconnect():
         #the step2_exchange function exchanges an authorization code for a credential object
         credentials = oauth_flow.step2_exchange(code)
       
-    ##If there error happens in the exchange then a FlowExchangeError is thrown
+    ##If an error happens in the exchange and a FlowExchangeError is thrown
     except FlowExchangeError:
         
         ##Sending the response as a json object
@@ -94,7 +94,7 @@ def gconnect():
         ##Setting the content type of the response object
         response.headers['Content-Type'] = 'application/json'
         
-        ##returining the response to the client
+        ##Returning the response to the client
         return response
 
     ####Check that the access token is valid.
@@ -119,7 +119,7 @@ def gconnect():
         ##Setting the content type of the response object
         response.headers['Content-Type'] = 'application/json'
         
-        ##returining the response to the client
+        ##Returning the response to the client
         return response
     
     ####Verify that the access token is used for the intended user.    
@@ -138,7 +138,7 @@ def gconnect():
         ##Setting the content type of the response object
         response.headers['Content-Type'] = 'application/json'
         
-        ##returining the response to the client
+        ##Returning the response to the client
         return response
 
     ####Verifying the client id
@@ -156,7 +156,7 @@ def gconnect():
         ##Setting the content type of the response object        
         response.headers['Content-Type'] = 'application/json'
         
-        ##returining the response to the client
+        ##Returning the response to the client
         return response
 
     ####Check if the user is already logged in to the system
@@ -166,8 +166,8 @@ def gconnect():
     ##Extracting the id from google api server from the login session
     stored_gplus_id = login_session.get('gplus_id')
     
-    ##If there is not stored access token from the login session and
-    #id from extract google api server matches to the id extracted previosly from credentials object
+    ##If there is no stored access token from the login session and
+    #id extracted from google api server matches to the id extracted previosly from credentials object
     #then make a 200 response that the user is already connected
     if stored_access_token is not None and gplus_id == stored_gplus_id:
         
@@ -177,7 +177,7 @@ def gconnect():
         #Setting the content type of the response object
         response.headers['Content-Type'] = 'application/json'
         
-        ##returining the response to the client
+        ##Returning the response to the client
         return response
         
     ####Assuming that none of the preceding if statements are true 
@@ -190,14 +190,14 @@ def gconnect():
 
     ##User info url
     userinfo_url = "https://www.googleapis.com/oauth2/v1/userinfo"
-    ##Required paramters for the get request, one of them is the access token
+    ##Required parameters for the get request, one of them is the access token
     params = {'access_token': credentials.access_token, 'alt': 'json'}
     ##Extracting the user data from the get request
     answer = requests.get(userinfo_url, params=params)
     ##Serializing the user data into a json object
     data = answer.json()
 
-    ##Extracting only the useful information the user data and storing it in login session
+    ##Extracting only the useful information of the user data and storing it in login session
     login_session['username'] = data['name']
     login_session['picture'] = data['picture']
     login_session['email'] = data['email']
@@ -295,7 +295,7 @@ def gdisconnect():
     print 'User name is: ' 
     print login_session['username']
     
-    ##If there is not access token then no user to disconnect so we will return an error for this case
+    ##If there is no access token then no user to disconnect so we will return an error for this case
     if access_token is None:
         
         ##Print statement
@@ -352,21 +352,35 @@ def gdisconnect():
 # JSON APIs to view Restaurant Information
 @app.route('/restaurant/<int:restaurant_id>/menu/JSON')
 def restaurantMenuJSON(restaurant_id):
+    
+    ##Querying the restaurant object from the database by restaurant id
     restaurant = session.query(Restaurant).filter_by(id=restaurant_id).one()
+
+    ##Querying all the menu items of the restaurant by restaurant id    
     items = session.query(MenuItem).filter_by(
         restaurant_id=restaurant_id).all()
+        
+    ##Jsonifying each item and returning the json as response to get request
     return jsonify(MenuItems=[i.serialize for i in items])
 
 
 @app.route('/restaurant/<int:restaurant_id>/menu/<int:menu_id>/JSON')
 def menuItemJSON(restaurant_id, menu_id):
+    
+    ##Querying the menu item by menu id given as the routing paramter
     Menu_Item = session.query(MenuItem).filter_by(id=menu_id).one()
+    
+    ##Jsonifying the menu item and returning the json as response to get request
     return jsonify(Menu_Item=Menu_Item.serialize)
 
 
 @app.route('/restaurant/JSON')
 def restaurantsJSON():
+    
+    ##Quering all restaurants from the database
     restaurants = session.query(Restaurant).all()
+    
+    ##Jsonifying each restaurant items and returing the json as response to get request
     return jsonify(restaurants=[r.serialize for r in restaurants])
 
 
@@ -375,70 +389,122 @@ def restaurantsJSON():
 @app.route('/restaurant/')
 def showRestaurants():
 
-    ##Extracting the restaurants by ascending order
+    ##Extracting the restaurants in ascending order by name
     restaurants = session.query(Restaurant).order_by(asc(Restaurant.name))
     
     ##if the username field is not in login session
     if 'username' not in login_session:
         
-        ##render the public template
+        ##render the public template and passing the retrieved restaurants as template parameters
         return render_template('publicrestaurants.html', restaurants=restaurants)
     else:
         
-        ##render the private template
+        ##render the private template and passing the retrieved restaurants as template parameters
         return render_template('restaurants.html', restaurants=restaurants)
+        
 
 # Create a new restaurant
-
-
-@app.route('/restaurant/new/', methods=['GET', 'POST'])
+@app.route('/restaurant/new/', methods=['GET', 'POST']) ##routing accepts both get and post method
 def newRestaurant():
+    
+    ##if the username is not in login sesssion then redirect to login page
     if 'username' not in login_session:
         return redirect('/login')
+        
+    ##if the request method is post
     if request.method == 'POST':
+        
+        ##Create a new restaurant object using the name retrieved from post request 
+        #and user id retrieved from the login session
         newRestaurant = Restaurant(
             name=request.form['name'], user_id=login_session['user_id'])
+        
+        ##Staging the new restaurant 
         session.add(newRestaurant)
+        
+        ##Setting a flash message 
         flash('New Restaurant %s Successfully Created' % newRestaurant.name)
+        
+        ##Committing the change to the database
         session.commit()
+        
+        ##Redirecting to the url for showRestaurants
         return redirect(url_for('showRestaurants'))
+    
+    ##if there is a get request then render the newRestaurant.html template
     else:
+        
         return render_template('newRestaurant.html')
 
+
 # Edit a restaurant
-
-
-@app.route('/restaurant/<int:restaurant_id>/edit/', methods=['GET', 'POST'])
+@app.route('/restaurant/<int:restaurant_id>/edit/', methods=['GET', 'POST']) ##routing accepts both get and post method
 def editRestaurant(restaurant_id):
+    
+    ##Querying the restaurant from the database by restaurant id given as a get parameter
     editedRestaurant = session.query(
         Restaurant).filter_by(id=restaurant_id).one()
+        
+    ##if the username is not in login session then redirect to the login page
     if 'username' not in login_session:
         return redirect('/login')
+        
+    ##if the user id of the login session does not match the user id of the restaruant then give a warning alert
     if editedRestaurant.user_id != login_session['user_id']:
         return "<script>function myFunction() {alert('You are not authorized to edit this restaurant. Please create your own restaurant in order to edit.');}</script><body onload='myFunction()''>"
+
+    ##if the request method id post    
     if request.method == 'POST':
+        
+        ##if a name parameter is received from the request form
         if request.form['name']:
+            
+            ##Setting the name of the restaurant to the name retrieved from the post request
             editedRestaurant.name = request.form['name']
+            
+            ##Setting a flash message 
             flash('Restaurant Successfully Edited %s' % editedRestaurant.name)
+            
+            ##Redirect to the url for showRestaurants
             return redirect(url_for('showRestaurants'))
+    
+    ##if there is a get request then render the template of editedRestaurant.html 
     else:
         return render_template('editRestaurant.html', restaurant=editedRestaurant)
 
 
 # Delete a restaurant
-@app.route('/restaurant/<int:restaurant_id>/delete/', methods=['GET', 'POST'])
+@app.route('/restaurant/<int:restaurant_id>/delete/', methods=['GET', 'POST']) ##routing accepts both get and post requests
 def deleteRestaurant(restaurant_id):
+
+    ##Querying the restaurant from the database by restaurant id given as a get parameter    
     restaurantToDelete = session.query(
         Restaurant).filter_by(id=restaurant_id).one()
+        
+    ##if the username is not in login session then redirect to the login page
     if 'username' not in login_session:
         return redirect('/login')
+        
+    ##if the user id of the login session does not match the user id of the restaruant then give a warning alert
     if restaurantToDelete.user_id != login_session['user_id']:
         return "<script>function myFunction() {alert('You are not authorized to delete this restaurant. Please create your own restaurant in order to delete.');}</script><body onload='myFunction()''>"
+
+    ##if the request method is post    
     if request.method == 'POST':
+        
+        ##Deleting the restaurant        
         session.delete(restaurantToDelete)
+        
+        ##Setting a flash message 
         flash('%s Successfully Deleted' % restaurantToDelete.name)
+        
+        ##Committing the change to the database
         session.commit()
+        
+        ##redirecting the to the url for showRestaurants passing the restaurant id as the template parameter
         return redirect(url_for('showRestaurants', restaurant_id=restaurant_id))
+
+    ##if there is a get request then render the template of deleteRestaurant.html     
     else:
         return render_template('deleteRestaurant.html', restaurant=restaurantToDelete)
 
@@ -450,10 +516,10 @@ def deleteRestaurant(restaurant_id):
 @app.route('/restaurant/<int:restaurant_id>/menu/')
 def showMenu(restaurant_id):
     
-    ##Retrieving the restaurant from database by restaurant id
+    ##Retrieving the restaurant from database by restaurant id retrieved from the get parameters
     restaurant = session.query(Restaurant).filter_by(id=restaurant_id).one()
     
-    ##Retrieving the creator of the restaurant by restaurant's user id
+    ##Retrieving the creator (user) of the restaurant by restaurant's user id
     creator = getUserInfo(restaurant.user_id)
     
     ##Retrieving the menu items of the restaurant
@@ -461,79 +527,150 @@ def showMenu(restaurant_id):
         restaurant_id=restaurant_id).all()
         
     ##if the username field is not in the login session
-    #or the creator id does not match the login session id
+    #or the creator id does not match the login session user id
     #then render the public template
     #or else render the private template
     if 'username' not in login_session or creator.id != login_session['user_id']:
         
+        ##passing the items, restaurantm and user as the template variables
         return render_template('publicmenu.html', items=items, restaurant=restaurant, creator=creator)
     else:
         
+        ##passing the items, restaurantm and user as the template variables
         return render_template('menu.html', items=items, restaurant=restaurant, creator=creator)
 
 
 
 # Create a new menu item
-@app.route('/restaurant/<int:restaurant_id>/menu/new/', methods=['GET', 'POST'])
+@app.route('/restaurant/<int:restaurant_id>/menu/new/', methods=['GET', 'POST']) ##routing accepts both get and post requests
 def newMenuItem(restaurant_id):
+    
+    ##if the username is not in login session then redirect to the login page
     if 'username' not in login_session:
         return redirect('/login')
+        
+    ##querying the restaurant object from the database by restaurant id
     restaurant = session.query(Restaurant).filter_by(id=restaurant_id).one()
+    
+    ##if the user id of the login session does not match the user id of the restaruant then give a warning alert
     if login_session['user_id'] != restaurant.user_id:
         return "<script>function myFunction() {alert('You are not authorized to add menu items to this restaurant. Please create your own restaurant in order to add items.');}</script><body onload='myFunction()''>"
+    
+    ##if the request method is post
     if request.method == 'POST':
+        
+        ##Creating a new MenuItem by using fields from the form
         newItem = MenuItem(name=request.form['name'], description=request.form['description'], price=request.form[
                            'price'], course=request.form['course'], restaurant_id=restaurant_id, user_id=restaurant.user_id)
+        
+        ##Adding the MenuItem 
         session.add(newItem)
+        
+        ##Committing the change to the database
         session.commit()
+        
+        ##Setting a flash message
         flash('New Menu %s Item Successfully Created' % (newItem.name))
+        
+        ##redirect to the url for showMenu, passing the restaurant_id as the routing parameter
         return redirect(url_for('showMenu', restaurant_id=restaurant_id))
+    
+    ##if there is a get request then render the template of newmenuitem.html    
     else:
         return render_template('newmenuitem.html', restaurant_id=restaurant_id)
 
+
 # Edit a menu item
-
-
-@app.route('/restaurant/<int:restaurant_id>/menu/<int:menu_id>/edit', methods=['GET', 'POST'])
+@app.route('/restaurant/<int:restaurant_id>/menu/<int:menu_id>/edit', methods=['GET', 'POST']) ##routing accepts both get and post requests
 def editMenuItem(restaurant_id, menu_id):
+    
+    ##if the username is not in login session then redirect to the login page
     if 'username' not in login_session:
         return redirect('/login')
+        
+    ##Querying the menu item from the database by menu id
     editedItem = session.query(MenuItem).filter_by(id=menu_id).one()
+    
+    ##Querying the restaurant from the database by restaurant id
     restaurant = session.query(Restaurant).filter_by(id=restaurant_id).one()
+    
+    ##if the user id of the login session does not match the user id of the restaruant then give a warning alert
     if login_session['user_id'] != restaurant.user_id:
         return "<script>function myFunction() {alert('You are not authorized to edit menu items to this restaurant. Please create your own restaurant in order to edit items.');}</script><body onload='myFunction()''>"
+    
+    ##If the request method is post    
     if request.method == 'POST':
+        
+        ##change the menu item name to the name retrieved from the form post request 
         if request.form['name']:
             editedItem.name = request.form['name']
+         
+        ##change the menu item description to the name retrieved from the form post request 
         if request.form['description']:
             editedItem.description = request.form['description']
+            
+        ##change the menu item price to the name retrieved from the form post request 
         if request.form['price']:
             editedItem.price = request.form['price']
+          
+        ##change the menu item course to the name retrieved from the form post request 
         if request.form['course']:
             editedItem.course = request.form['course']
+         
+        ##Staging the change
         session.add(editedItem)
+        
+        ##Committing the edit to the database
         session.commit()
+        
+        ##Setting a flash message
         flash('Menu Item Successfully Edited')
+        
+        ##Redirect to the url for showMenu, passing the restaurant_id as the routing parameter
         return redirect(url_for('showMenu', restaurant_id=restaurant_id))
+        
+    ##if there is a get request then render the template of editmenuitem.html  
     else:
+        
         return render_template('editmenuitem.html', restaurant_id=restaurant_id, menu_id=menu_id, item=editedItem)
 
 
 # Delete a menu item
-@app.route('/restaurant/<int:restaurant_id>/menu/<int:menu_id>/delete', methods=['GET', 'POST'])
+@app.route('/restaurant/<int:restaurant_id>/menu/<int:menu_id>/delete', methods=['GET', 'POST']) ##routing accepts both get and post requests
 def deleteMenuItem(restaurant_id, menu_id):
+    
+    ##if the username is not in login session then redirect to the login page
     if 'username' not in login_session:
         return redirect('/login')
+        
+    ##Querying the restaurant from the database by restaurant id
     restaurant = session.query(Restaurant).filter_by(id=restaurant_id).one()
+    
+    ##Querying the menuitem from the database by menu id
     itemToDelete = session.query(MenuItem).filter_by(id=menu_id).one()
+    
+    ##if the user id of the login session does not match the user id of the restaruant then give a warning alert
     if login_session['user_id'] != restaurant.user_id:
         return "<script>function myFunction() {alert('You are not authorized to delete menu items to this restaurant. Please create your own restaurant in order to delete items.');}</script><body onload='myFunction()''>"
+    
+    ##If the request method is post    
     if request.method == 'POST':
+        
+        ##Deleting the menu item from the restaurant
         session.delete(itemToDelete)
+        
+        ##Committing the change to the database
         session.commit()
+        
+        ##Setting a flash message
         flash('Menu Item Successfully Deleted')
+        
+        ##redirect to the url for showMenu, passing the restaurant id as the routing parameter
         return redirect(url_for('showMenu', restaurant_id=restaurant_id))
+        
+    ##if there is a get request then render the template of deleteMenuItem.html  
     else:
+        
         return render_template('deleteMenuItem.html', item=itemToDelete)
         
 
