@@ -49,6 +49,7 @@ def showLogin():
     
 @app.route('/fbconnect', methods=['POST'])
 def fbconnect():
+    
     if request.args.get('state') != login_session['state']:
         response = make_response(json.dumps('Invalid state parameter.'), 401)
         response.headers['Content-Type'] = 'application/json'
@@ -117,6 +118,24 @@ def fbconnect():
 
     flash("Now logged in as %s" % login_session['username'])
     return output
+    
+    
+@app.route('/fbdisconnect')
+def fbdisconnect():
+    facebook_id = login_session['facebook_id']
+    # The access token must me included to successfully logout
+    access_token = login_session['access_token']
+    url = 'https://graph.facebook.com/%s/permissions?access_token=%s' % (facebook_id,access_token)
+    h = httplib2.Http()
+    result = h.request(url, 'DELETE')[1]
+    
+    del login_session['username']
+    del login_session['email']
+    del login_session['picture']
+    del login_session['user_id']  
+    del login_session['facebook_id']    
+    
+    return "you have been logged out"
 
 
 ##Creating a routing for GConnect that only accepts post request
@@ -268,6 +287,9 @@ def gconnect():
     answer = requests.get(userinfo_url, params=params)
     ##Serializing the user data into a json object
     data = answer.json()
+    
+    ##Adding the login session provider
+    login_session['provider'] = 'google'
 
     ##Extracting only the useful information of the user data and storing it in login session
     login_session['username'] = data['name']
@@ -745,6 +767,52 @@ def deleteMenuItem(restaurant_id, menu_id):
         
         return render_template('deleteMenuItem.html', item=itemToDelete)
         
+        
+##Routing for disconnecting based on provider
+@app.route('/disconnect')
+def disconnect():
+    
+    ##If there is no provider parameter in login_session
+    if 'provider' in login_session:
+        
+        ##if the provider of the login session is google
+        if login_session['provider'] == 'google':
+            
+            ##Executing gdisconnect for diconnecting the user
+            gdisconnect()
+            
+            ##Deleting the google login parameters
+            del login_session['gplus_id']            
+            del login_session['credentials']
+         
+        ##if the provider of the login session is facebook
+        if login_session['provider'] == 'facebook':
+            
+            ##Executing fbconnect for disconnecting the user
+            fbdisconnect()
+            
+            ##Deleting the facebook login parameters
+            del login_session['facebook_id']
+
+        ##Deleting the common login session parameters
+        del login_session['username']
+        del login_session['email']
+        del login_session['picture']
+        del login_session['user_id']
+        del login_session['provider']
+        
+        ##Setting a flash message of a successful log out
+        flash("You have successfully been logged out.")
+        
+        ##redirecting to the url for showRestaurants 
+        return redirect(url_for('showRestaurants'))
+        
+    #else flash the message that user is not logged in and redirect to the url for showRestaurants 
+    else:
+        
+        flash("You were not logged in")
+        
+        return redirect(url_for('showRestaurants'))   
 
 
 if __name__ == '__main__':
