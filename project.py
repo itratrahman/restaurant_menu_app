@@ -49,7 +49,6 @@ def showLogin():
     
 @app.route('/fbconnect', methods=['POST'])
 def fbconnect():
-    
     if request.args.get('state') != login_session['state']:
         response = make_response(json.dumps('Invalid state parameter.'), 401)
         response.headers['Content-Type'] = 'application/json'
@@ -253,14 +252,14 @@ def gconnect():
     ####Check if the user is already logged in to the system
     
     ##Extracting the access token from the login session
-    stored_access_token = login_session.get('access_token')
+    stored_credentials = login_session.get('credentials')
     ##Extracting the id from google api server from the login session
     stored_gplus_id = login_session.get('gplus_id')
     
     ##If there is no stored access token from the login session and
     #id extracted from google api server matches to the id extracted previosly from credentials object
     #then make a 200 response that the user is already connected
-    if stored_access_token is not None and gplus_id == stored_gplus_id:
+    if stored_credentials is not None and gplus_id == stored_gplus_id:
         
         ##Making 200 JSON response
         response = make_response(json.dumps('Current user is already connected.'),
@@ -299,7 +298,7 @@ def gconnect():
     ####Seeeing if the user exists, if it doesnt then make a new one
     
     ##Extracting the user id from the database by email retrieved from the login session
-    user_id = getUserID(login_session['email'])
+    user_id = getUserID(data["email"])
     
     ##If there is no user id then make a new user object using data from login session
     if not user_id:
@@ -380,67 +379,23 @@ def getUserID(email):
 # DISCONNECT - Revoke a current user's token and reset their login_session
 @app.route('/gdisconnect')
 def gdisconnect():
-    
-    ##Extracting the access token from the login session
-    access_token = login_session['access_token']
-    
-    ##Print statements
-    print 'In gdisconnect access token is %s', access_token
-    print 'User name is: ' 
-    print login_session['username']
-    
-    ##If there is no access token then no user to disconnect so we will return an error for this case
-    if access_token is None:
-        
-        ##Print statement
-        print 'Access Token is None'
-        
-        ##Making a 401 response to the client
-        response = make_response(json.dumps('Current user not connected.'), 401)
-
-        ##Setting the content type of the response        
+    # Only disconnect a connected user.
+    credentials = login_session.get('credentials')
+    if credentials is None:
+        response = make_response(
+            json.dumps('Current user not connected.'), 401)
         response.headers['Content-Type'] = 'application/json'
-        
-        ##Sending the response to the client
         return response
-        
-    ####Executing HTTP get request to revoke the tokens
-        
-    ##url for the get request
-    url = 'https://accounts.google.com/o/oauth2/revoke?token=%s' % login_session['access_token']
-    ##Carrying the out the get request
+    access_token = credentials.access_token
+    url = 'https://accounts.google.com/o/oauth2/revoke?token=%s' % access_token
     h = httplib2.Http()
     result = h.request(url, 'GET')[0]
-    ##print statements
-    print 'result is '
-    print result
-    
-    ##If a response is received  
-    if result['status'] == '200':
-        
-        ##Deleteting the login session data
-        del login_session['access_token'] 
-        del login_session['gplus_id']
-        del login_session['username']
-        del login_session['email']
-        del login_session['picture']
-        
-        ##Making a json response to notify the user for successful disconnection
-        response = make_response(json.dumps('Successfully disconnected.'), 200)
-        ##Setting the header of the response
+    if result['status'] != '200':
+        # For whatever reason, the given token was invalid.
+        response = make_response(
+            json.dumps('Failed to revoke token for given user.'), 400)
         response.headers['Content-Type'] = 'application/json'
-        ##returning the response to the client
         return response
-    
-    ##if any response code other than 200 is received
-    else:
-	
-         ##Making an error response to the client
-        	response = make_response(json.dumps('Failed to revoke token for given user.', 400))
-         ##Setting the headers of the response
-        	response.headers['Content-Type'] = 'application/json'
-         ##Returning a response to the client
-        	return response
          
 
 # JSON APIs to view Restaurant Information
@@ -671,7 +626,9 @@ def newMenuItem(restaurant_id):
     
     ##if there is a get request then render the template of newmenuitem.html    
     else:
+        
         return render_template('newmenuitem.html', restaurant_id=restaurant_id)
+        
 
 
 # Edit a menu item
@@ -781,9 +738,8 @@ def disconnect():
             ##Executing gdisconnect for diconnecting the user
             gdisconnect()
             
-            ##Deleting the google login parameters
-            del login_session['gplus_id']            
-            del login_session['credentials']
+            ##Deleting the google id parameter from login session
+            del login_session['gplus_id']
          
         ##if the provider of the login session is facebook
         if login_session['provider'] == 'facebook':
@@ -791,7 +747,7 @@ def disconnect():
             ##Executing fbconnect for disconnecting the user
             fbdisconnect()
             
-            ##Deleting the facebook login parameters
+            ##Deleting the facebook id from login session
             del login_session['facebook_id']
 
         ##Deleting the common login session parameters
